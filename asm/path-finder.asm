@@ -1,28 +1,170 @@
   org  0x5ccb
-  ld a, 4
-  call malloc
+  ld hl, (path_list_tail)
+loop2
+;  ld (current_path), hl
+  ld a, h
+  cp 0
+  jp z, infinite_loop
+  push hl
+  pop iy
+  ld h, (iy + 0)
+  ld l, (iy + 1)
+  ;check if x > 0
+  ld a, (iy + 0)
+  and a
+  jz l1
+  dec a
+  ld h, a
+  ld l, (iy + 1)
+  call create_new_node
+  jnz l1
+  ex de, hl
+  call create_new_path
+  call check_node
+  ret z
+l1
+  ;check if x < 7
+  ld a, (iy + 0)
+  sub 7
+  jz l2
+  ld h, (iy + 0)
+  inc h
+  ld l, (iy + 1)
+  call create_new_node
+  jnz l2
+  ex de, hl
+  call create_new_path
+  call check_node
+  ret z
+l2
+  ;check if y > 0
+  ld a, (iy + 1)
+  and a
+  jz l1
+  ld h, (iy + 0)
+  ld l, a
+  call create_new_node
+  jnz l3
+  ex de, hl
+  call create_new_path
+  call check_node
+  ret z
+l3
+  ;check if y < 7
+  ld a, (iy + 1)
+  sub 7
+  jz l2
+  ld l, (iy + 1)
+  inc l
+  ld h, (iy + 0)
+  call create_new_node
+  jnz l4
+  ex de, hl
+  call create_new_path
+  call check_node
+  ret z
+l4
+  ld hl, current_path
+  push hl
+  pop iy
+  ld h, (iy + 2)
+  ld l, (iy + 3)
+  push hl
+  pop iy
+  ld h, (iy + 2)
+  ld l, (iy + 3)
+  push hl
+  pop iy
+  ld h, (iy + 2)
+  ld l, (iy + 3)
+  push hl
+  pop iy
+  ld h, (iy + 2)
+  ld l, (iy + 3)
+  jp loop2
+
+check_node
+  ;de - node to check
+  ;set Z if found
   push de
   pop ix
-  ld (ix + 0), 1
-  ld (ix + 1), 1
+  ld d, (ix + 0)
+  ld e, (ix + 1)
+  push de
+  pop ix
+  ld d, (ix + 0)
+  ld e, (ix + 1)
+  ld hl, (goal)
+  ld a, h
+  cp d
+  ret nz
+  ld a, l
+  cp e
+  ret
+
+
+create_new_path
+  ;hl - head
+  ;de - new head
+  ld a, 4
+  push hl
+  call malloc
+  pop hl
+  push de
+  pop ix
+  ld (ix + 0), h
+  ld (ix + 1), l
   ld (ix + 2), 0
   ld (ix + 3), 0
-  ld ix, head
-  ld (ix + 0), d
-  ld (ix + 1), e
+  ld hl, (path_list_tail)
+  push hl
+  pop ix
+  ld (ix + 2), d
+  ld (ix + 3), e
+  ld (path_list_tail), de
+  ret
 
-  ld a, 4
-  call malloc
+create_new_node
+  ;h - x
+  ;l - y
+  ;returns new node in de
+  ;set Z if false
+  ld ix, prev_nodes_head
+check1
+  ld a, (ix + 0)
+  cp h
+  jp nz, next
+  ld a, (ix + 1)
+  cp l
+  ret z
+next
+  ld d, (ix + 2)
+  ld e, (ix + 3)
+  ld a, d
+  and a
+  jz check2
   push de
   pop ix
-  ld hl, (head)
-  ld (ix + 0), 1
-  ld (ix + 1), 2
+  jp check1
+check2
+  ;h - x
+  ;l - y
+  ;add new node into the list
+  ld a, 4
+  push hl
+  call malloc
+  pop hl
+  push de
+  pop ix
+  ld (ix + 0), h
+  ld (ix + 1), l
+  ld hl, prev_nodes_head
   ld (ix + 2), h
   ld (ix + 3), l
-  ld ix, head
-  ld (ix + 0), d
-  ld (ix + 1), e
+  ld ix, prev_nodes_head
+  ld (ix + 0), e
+  ld (ix + 1), d
+  ret
 
 
 
@@ -35,6 +177,7 @@
   ld hl, $4000
   call print_word
   jp infinite_loop
+
 
 len
   ;hl - Input string
@@ -158,6 +301,22 @@ loop ;Prints symbol line by line
   djnz loop
   ret
 
+get_labirint_cell
+  ;d - x
+  ;e - y
+  ;returns cell value in a
+  ld hl, labirint
+  rl e
+  rl e
+  rl e
+  ld a, e
+  add a, d
+  ld e, a
+  ld d, 0
+  add hl, de
+  ld a, (hl)
+  ret
+
 infinite_loop
   jp infinite_loop
 
@@ -170,6 +329,16 @@ world
 
 bits
   defb "0123456789ABCDEF"
+
+labirint
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,1,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
+  defb 0,0,0,0,0,0,0,0
 
 symbol_table
   ;space
@@ -469,10 +638,6 @@ symbol_table
   defb 00000000b
   defb 00000000b
   defb 00000000b
-
-
-
-
   ;a
   defb 00111000b
   defb 01000100b
@@ -708,7 +873,21 @@ symbol_table
   defb 01111100b
   defb 00000000b
 
-head
+  org 8000h
+
+goal
+  defb 6, 6
+
+current_path
+  defb 2, 1
+  defw 0
+
+path_list_tail
+  defw current_path
+  defw 0
+
+prev_nodes_head
+  defb 2, 1
   defw 0
 
 user_memory
